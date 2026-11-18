@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Làm Bài Kiểm Tra</title>
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1e3a8a;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Thanh trạng thái trên cùng */
+        #top-bar {
+            background-color: var(--primary);
+            color: white;
+            padding: 10px 24px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            z-index: 20;
+            height: 56px;
+        }
+
+        .student-badge {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .violation-badge {
+            background-color: #fef2f2;
+            color: var(--danger);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 1px solid #fecaca;
+        }
+
+        .timer-box {
+            background-color: rgba(0, 0, 0, 0.25);
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: 1px;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        /* Quản lý các màn hình (Phần 1 -> 5) */
+        .screen {
+            display: none;
+            flex: 1;
+            height: calc(100vh - 56px);
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* PHẦN 1: Đăng nhập */
+        #part1 {
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: var(--card);
+            padding: 36px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .login-card h1 {
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 1.75rem;
+        }
+
+        .login-card p.subtitle {
+            color: #64748b;
+            margin-bottom: 24px;
+            font-size: 0.95rem;
+        }
+
+        .rules-box {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+            color: #92400e;
+            margin-bottom: 24px;
+            border-radius: 4px;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* PHẦN 2: Speaking */
+        #part2 {
+            position: relative;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: #0f172a;
+            color: white;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 90%;
+            max-width: 960px;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            border: 2px solid #334155;
+            transition: all 0.35s ease;
+        }
+
+        /* Tự động phóng to video tràn toàn màn hình khi nhấn Play */
+        .video-wrapper.expanded-fullscreen {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            width: 100vw;
+            height: calc(100vh - 56px);
+            max-width: none;
+            aspect-ratio: auto;
+            border-radius: 0;
+            border: none;
+            z-index: 15;
+        }
+
+        .video-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Che nút mở tab mới (Pop-out) ở góc trên bên phải của Google Drive */
+        .drive-popout-blocker {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            z-index: 6;
+            background: transparent;
+        }
+
+        /* Lớp kính trong suốt: Ban đầu mở để học viên bấm Play, sau khi bấm sẽ khóa chặt toàn bộ video */
+        .video-blocker {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            background: transparent;
+            cursor: not-allowed;
+        }
+
+        /* PHẦN 3, 4 & 5: Chia đôi màn hình (Split View) */
+        .split-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .left-pane {
+            flex: 1;
+            height: 100%;
+            border-right: 2px solid #cbd5e1;
+            background: #e2e8f0;
+        }
+
+        .left-pane iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .right-pane {
+            flex: 1;
+            height: 100%;
+            padding: 24px;
+            overflow-y: auto;
+            background: var(--card);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-pane h3 {
+            color: var(--primary);
+            margin-bottom: 6px;
+            font-size: 1.3rem;
+        }
+
+        .right-pane p.hint {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        /* Ô nhập đáp án Writing 1 */
+        .question-block {
+            margin-bottom: 18px;
+        }
+
+        .question-block label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #334155;
+        }
+
+        .question-block textarea {
+            width: 100%;
+            height: 85px;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 0.98rem;
+            line-height: 1.4;
+            outline: none;
+        }
+
+        .question-block textarea:focus {
+            border-color: var(--primary);
+        }
+
+        /* Ô nhập văn bản cho Writing 2 & Writing 3 */
+        .email-editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .email-editor textarea {
+            flex: 1;
+            width: 100%;
+            padding: 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            resize: none;
+            font-size: 1rem;
+            line-height: 1.6;
+            outline: none;
+        }
+
+        .email-editor textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .bottom-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .word-count {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #475569;
+            margin-right: auto;
+        }
+
+        .btn-submit {
+            width: auto;
+            padding: 12px 28px;
+            background-color: var(--success);
+        }
+
+        .btn-submit:hover {
+            background-color: #15803d;
+        }
+
+        /* Màn hình Kết thúc */
+        #end-screen {
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Cửa sổ cảnh báo vi phạm / nhắc bật lại Fullscreen */
+        #warning-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+        }
+
+        .modal-card h3 {
+            color: var(--danger);
+            font-size: 1.4rem;
+            margin-bottom: 12px;
+        }
+
+        .modal-card p {
+            margin-bottom: 20px;
+            line-height: 1.5;
+            color: #334155;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- THANH TRẠNG THÁI (Hiện từ Phần 2 đến Phần 5) -->
+    <div id="top-bar">
+        <div class="student-badge" id="student-display">Học viên: --- | Lớp: ---</div>
+        <div id="section-name" style="font-weight: 700; font-size: 1.05rem;">PHẦN 2: SPEAKING</div>
+        <div class="status-right">
+            <div class="violation-badge">Vi phạm: <span id="violation-count">0</span>/2</div>
+            <div class="timer-box" id="timer-display">05:15</div>
+        </div>
+    </div>
+
+    <!-- PHẦN 1: NHẬP THÔNG TIN -->
+    <div id="part1" class="screen active">
+        <div class="login-card">
+            <h1>BÀI KIỂM TRA ĐÁNH GIÁ</h1>
+            <p class="subtitle">Vui lòng điền đầy đủ thông tin trước khi bắt đầu</p>
+
+            <div class="rules-box">
+                <strong>⚠️ Quy định phòng thi:</strong><br>
+                • Bài thi gồm 4 phần: <b>Speaking (7p15s)</b>, <b>Writing 1 (4p)</b>, <b>Writing 2 (10p)</b> và <b>Writing 3 (20p)</b>.<br>
+                • Hệ thống tự động khóa ở chế độ <b>Toàn màn hình</b>.<br>
+                • Tuyệt đối không thoát toàn màn hình hoặc chuyển sang tab/ứng dụng khác. Nếu vi phạm <b>2 lần</b>, hệ thống sẽ tự động thu bài ngay lập tức.
+            </div>
+
+            <div class="form-group">
+                <label for="fullname">Họ và tên học viên:</label>
+                <input type="text" id="fullname" placeholder="Ví dụ: Nguyễn Văn A" required>
+            </div>
+            <div class="form-group">
+                <label for="classname">Lớp:</label>
+                <input type="text" id="classname" placeholder="Ví dụ: SW-01" required>
+            </div>
+
+            <button class="btn" onclick="startExam()">Xác nhận & Bắt đầu làm bài</button>
+        </div>
+    </div>
+
+    <!-- PHẦN 2: SPEAKING (7 phút 15 giây) -->
+    <div id="part2" class="screen">
+        <p id="speaking-status" style="margin-bottom: 14px; font-size: 1.05rem; color: #facc15; font-weight: 600; text-align: center;">
+            👉 Hãy nhấn nút Play (▶) giữa màn hình để bắt đầu phát đề. Ngay khi nhấn, video sẽ tự phóng to toàn màn hình, khóa thao tác và bắt đầu tính giờ!
+        </p>
+        <div class="video-wrapper" id="speaking-video-wrapper">
+            <!-- Nạp sẵn video từ đầu để không bị màn hình đen -->
+            <iframe 
+                id="speaking-video" 
+                src="https://drive.google.com/file/d/1xeJen74A0Eh4hzrKpME3TIXHj6ivI6JY/preview" 
+                allow="autoplay; encrypted-media; fullscreen">
+            </iframe>
+            <!-- Che nút mở tab mới ở góc phải trên -->
+            <div class="drive-popout-blocker" oncontextmenu="return false;"></div>
+            <!-- Lớp kính khóa toàn bộ video sau khi học viên nhấn Play -->
+            <div id="video-blocker" class="video-blocker" oncontextmenu="return false;"></div>
+        </div>
+    </div>
+
+    <!-- PHẦN 3: WRITING 1 (4 phút) -->
+    <div id="part3" class="screen">
+        <div class="split-container">
+            <div class="left-pane">
+                <!-- LINK ĐỀ WRITING 1 -->
+                <iframe src="https://docs.google.com/document/d/1B5u3DPZTqEh6b77ZMbxSbf4-BoHjASGMYXblGZguzc4/preview"></iframe>
+            </div>
+            <div class="right-pane">
+                <h3>WRITING PART 1</h3>
+                <p class="hint">Quan sát đề bài bên trái và điền đáp án tương ứng vào 5 câu bên dưới (Thời gian: 4 phút).</p>
+
+                <div class="question-block">
+                    <label>Question 1:</label>
+                    <textarea id="w1_q1" placeholder="Nhập câu trả lời số 1..."></textarea>
+                </div>
+                <div class="question-block">
+                    <label>Question 2:</label>
+                    <textarea id="w1_q2" placeholder="Nhập câu trả lời số 2..."></textarea>
+                </div>
+                <div class="question-block">
+                    <label>Question 3:</label>
+                    <textarea id="w1_q3" placeholder="Nhập câu trả lời số 3..."></textarea>
+                </div>
+                <div class="question-block">
+                    <label>Question 4:</label>
+                    <textarea id="w1_q4" placeholder="Nhập câu trả lời số 4..."></textarea>
+                </div>
+                <div class="question-block">
+                    <label>Question 5:</label>
+                    <textarea id="w1_q5" placeholder="Nhập câu trả lời số 5..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PHẦN 4: WRITING 2 (10 phút) -->
+    <div id="part4" class="screen">
+        <div class="split-container">
+            <div class="left-pane">
+                <!-- LINK ĐỀ WRITING 2 -->
+                <iframe src="https://docs.google.com/document/d/1iia3FoAyevuzUpNOP6IZCYQax3jjYljkcWE1MfHwCMA/preview"></iframe>
+            </div>
+            <div class="right-pane">
+                <h3>WRITING PART 2: WRITE AN EMAIL</h3>
+                <p class="hint">Đọc kỹ yêu cầu ở khung bên trái và viết phản hồi email vào ô bên dưới (Thời gian: 10 phút). Hết giờ hệ thống sẽ tự động chuyển sang Writing Part 3.</p>
+
+                <div class="email-editor">
+                    <textarea id="w2_email" placeholder="Nhập nội dung email của bạn tại đây..." oninput="updateWordCountW2()"></textarea>
+                </div>
+
+                <div class="bottom-actions">
+                    <span class="word-count" id="word-count-w2">Số từ: 0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PHẦN 5: WRITING 3 (20 phút) -->
+    <div id="part5" class="screen">
+        <div class="split-container">
+            <div class="left-pane">
+                <!-- THAY LINK ĐỀ WRITING 3 Ở ĐÂY (Nhớ dùng đuôi /preview) -->
+                <iframe src="https://docs.google.com/document/d/1idgG3-wNzHzCmTRIOuIEm0rTJHWL5F9cEnDBmYq1spY/preview"></iframe>
+            </div>
+            <div class="right-pane">
+                <h3>WRITING PART 3: WRITE AN OPINION ESSAY</h3>
+                <p class="hint">Đọc kỹ câu hỏi ở khung bên trái và viết bài luận trình bày quan điểm của bạn (Thời gian: 20 phút | Tiêu chuẩn: Trên 250 từ).</p>
+
+                <div class="email-editor">
+                    <textarea id="w3_essay" placeholder="Nhập bài luận Writing Part 3 của bạn tại đây..." oninput="updateWordCountW3()"></textarea>
+                </div>
+
+                <div class="bottom-actions">
+                    <span class="word-count" id="word-count-w3">Số từ: 0 (Tiêu chuẩn: > 250 từ)</span>
+                    <button class="btn btn-submit" onclick="confirmEarlySubmit()">Xác nhận & Nộp bài</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH KẾT THÚC -->
+    <div id="end-screen" class="screen">
+        <div class="login-card">
+            <h1 style="color: var(--success);">ĐÃ HOÀN THÀNH BÀI THI</h1>
+            <p id="end-reason" style="margin: 16px 0; color: #475569; line-height: 1.5;">
+                File đáp án của bạn đã được tự động tải xuống máy tính.
+            </p>
+            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 20px;">
+                Nếu trình duyệt chặn tải tự động, bạn có thể nhấn vào nút bên dưới để tải lại file bài làm của mình:
+            </p>
+            <button class="btn" onclick="downloadAnswers()">Tải lại file bài làm (.txt)</button>
+        </div>
+    </div>
+
+    <!-- MODAL CẢNH BÁO VI PHẠM -->
+    <div id="warning-modal">
+        <div class="modal-card">
+            <h3>⚠️ CẢNH BÁO VI PHẠM (Lần 1/2)</h3>
+            <p id="warning-desc">Bạn vừa thoát chế độ toàn màn hình hoặc chuyển sang cửa sổ khác. Nếu tái phạm thêm 1 lần nữa, bài thi sẽ tự động kết thúc và nộp ngay lập tức!</p>
+            <button class="btn" onclick="resumeFullscreen()">Quay lại chế độ Toàn màn hình</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CẤU HÌNH THỜI GIAN (Đơn vị: Giây) ---
+        const TIME_PART_2 = 7 * 60 + 15; // 7 phút 15 giây = 435 giây (Speaking)
+        const TIME_PART_3 = 4 * 60;      // 4 phút = 240 giây (Writing Part 1)
+        const TIME_PART_4 = 10 * 60;     // 10 phút = 600 giây (Writing Part 2)
+        const TIME_PART_5 = 20 * 60;     // 30 phút = 1200 giây (Writing Part 3)
+
+        // --- BIẾN TRẠNG THÁI ---
+        let studentName = "";
+        let studentClass = "";
+        let currentPart = 1;
+        let timerInterval = null;
+        let timeLeft = 0;
+        let violations = 0;
+        let isExamRunning = false;
+        let isSpeakingLocked = false;
+        let lastViolationTime = 0;
+        let submissionNote = "Nộp bài đúng quy định";
+
+        // Hàm hỗ trợ đếm số từ chuẩn xác
+        function countWords(str) {
+            const trimmed = str.trim();
+            return trimmed ? trimmed.split(/\s+/).length : 0;
+        }
+
+        // 1. BẮT ĐẦU BÀI THI
+        function startExam() {
+            const nameInput = document.getElementById('fullname').value.trim();
+            const classInput = document.getElementById('classname').value.trim();
+
+            if (!nameInput || !classInput) {
+                alert("Vui lòng nhập đầy đủ Họ tên và Lớp trước khi bắt đầu!");
+                return;
+            }
+
+            studentName = nameInput;
+            studentClass = classInput;
+
+            document.getElementById('student-display').textContent = `Học viên: ${studentName} | Lớp: ${studentClass}`;
+            document.getElementById('top-bar').style.display = 'flex';
+
+            // Kích hoạt chế độ toàn màn hình
+            requestFullScreen();
+
+            isExamRunning = true;
+            goToPart(2);
+        }
+
+        // 2. CHUYỂN PHẦN THI
+        function goToPart(partNumber) {
+            clearInterval(timerInterval);
+            currentPart = partNumber;
+
+            // Ẩn tất cả các màn hình
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+
+            const videoIframe = document.getElementById('speaking-video');
+
+            // Nếu rời khỏi Phần 2, ngắt hoàn toàn âm thanh video
+            if (partNumber !== 2 && videoIframe) {
+                videoIframe.src = "about:blank";
+            }
+
+            if (partNumber === 2) {
+                document.getElementById('part2').classList.add('active');
+                document.getElementById('section-name').textContent = "PHẦN 2: SPEAKING";
+                
+                // Hiển thị sẵn thời gian 05:15, đợi học viên bấm Play mới bắt đầu đếm ngược
+                timeLeft = TIME_PART_2;
+                updateTimerUI();
+            } 
+            else if (partNumber === 3) {
+                document.getElementById('part3').classList.add('active');
+                document.getElementById('section-name').textContent = "PHẦN 3: WRITING PART 1";
+                startTimer(TIME_PART_3, () => goToPart(4));
+            } 
+            else if (partNumber === 4) {
+                document.getElementById('part4').classList.add('active');
+                document.getElementById('section-name').textContent = "PHẦN 4: WRITING PART 2";
+                startTimer(TIME_PART_4, () => goToPart(5));
+            }
+            else if (partNumber === 5) {
+                document.getElementById('part5').classList.add('active');
+                document.getElementById('section-name').textContent = "PHẦN 5: WRITING PART 3";
+                startTimer(TIME_PART_5, () => {
+                    submissionNote = "Hết thời gian làm bài (Tự động thu bài)";
+                    finishExam();
+                });
+            }
+        }
+
+        // TỰ ĐỘNG PHÓNG TO TOÀN MÀN HÌNH & KHÓA VIDEO NGAY KHI HỌC VIÊN BẤM PLAY LẦN ĐẦU TIÊN
+        window.addEventListener('blur', () => {
+            setTimeout(() => {
+                const videoIframe = document.getElementById('speaking-video');
+                if (isExamRunning && currentPart === 2 && !isSpeakingLocked && document.activeElement === videoIframe) {
+                    isSpeakingLocked = true;
+
+                    // Đảm bảo trình duyệt đang ở chế độ Fullscreen và lập tức phóng to khung video tràn kín màn hình
+                    requestFullScreen();
+                    document.getElementById('speaking-video-wrapper').classList.add('expanded-fullscreen');
+                    document.getElementById('speaking-status').style.display = 'none';
+
+                    // Chờ 0.6 giây cho lệnh Play ăn vào Google Drive rồi khóa cứng mặt kính lại
+                    setTimeout(() => {
+                        document.getElementById('video-blocker').style.display = 'block';
+
+                        // Trả quyền điều khiển chuột/bàn phím về trang chính để chặn phím Space/K
+                        window.focus();
+
+                        // Bắt đầu đếm ngược 5 phút 15 giây
+                        startTimer(TIME_PART_2, () => goToPart(3));
+                    }, 600);
+                }
+            }, 50);
+        });
+
+        // 3. ĐỒNG HỒ ĐẾM NGƯỢC
+        function startTimer(seconds, onComplete) {
+            clearInterval(timerInterval);
+            timeLeft = seconds;
+            updateTimerUI();
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerUI();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    onComplete();
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            const display = document.getElementById('timer-display');
+            display.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+            // Đổi màu cảnh báo khi còn dưới 30 giây
+            if (timeLeft <= 30) {
+                display.style.backgroundColor = '#dc2626';
+            } else {
+                display.style.backgroundColor = 'rgba(0, 0, 0, 0.25)';
+            }
+        }
+
+        // 4. ĐẾM SỐ TỪ Ở WRITING 2 & WRITING 3
+        function updateWordCountW2() {
+            const words = countWords(document.getElementById('w2_email').value);
+            document.getElementById('word-count-w2').textContent = `Số từ: ${words}`;
+        }
+
+        function updateWordCountW3() {
+            const words = countWords(document.getElementById('w3_essay').value);
+            const countEl = document.getElementById('word-count-w3');
+            countEl.textContent = `Số từ: ${words} (Tiêu chuẩn: > 250 từ)`;
+            
+            // Đổi màu xanh khi học viên đã viết trên 250 từ
+            if (words > 250) {
+                countEl.style.color = '#16a34a';
+            } else {
+                countEl.style.color = '#dc2626';
+            }
+        }
+
+        // 5. XÁC NHẬN NỘP BÀI SỚM Ở WRITING PART 3
+        function confirmEarlySubmit() {
+            const w3Words = countWords(document.getElementById('w3_essay').value);
+
+            // Kiểm tra nếu học viên chưa viết trên 250 từ (tức <= 250 từ)
+            if (w3Words <= 250) {
+                const warnOk = confirm(
+                    `⚠️ CẢNH BÁO:\nBài của bạn chưa đủ số từ tiêu chuẩn (Hiện tại: ${w3Words} từ, yêu cầu trên 250 từ).\n\nNếu xác nhận tiếp tục nộp thì điểm là 2/5.\nBạn có chắc chắn muốn nộp bài ngay bây giờ không?`
+                );
+                if (warnOk) {
+                    submissionNote = `Học viên chủ động nộp bài trước giờ (Chưa đủ số từ tiêu chuẩn: ${w3Words} từ - Cảnh báo điểm 2/5)`;
+                    finishExam();
+                }
+            } else {
+                const ok = confirm("Bạn có chắc chắn muốn nộp bài và tải đáp án xuống ngay bây giờ không?");
+                if (ok) {
+                    submissionNote = "Học viên chủ động nộp bài trước giờ (Đạt tiêu chuẩn số từ)";
+                    finishExam();
+                }
+            }
+        }
+
+        // 6. KẾT THÚC BÀI THI & TẢI FILE
+        function finishExam() {
+            if (!isExamRunning) return;
+            isExamRunning = false;
+            clearInterval(timerInterval);
+
+            const videoIframe = document.getElementById('speaking-video');
+            if (videoIframe) {
+                videoIframe.src = "about:blank";
+            }
+
+            document.getElementById('warning-modal').style.display = 'none';
+            document.getElementById('top-bar').style.display = 'none';
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById('end-screen').classList.add('active');
+
+            document.getElementById('end-reason').textContent = `Trạng thái: ${submissionNote}. File đáp án đã được tự động tải xuống.`;
+
+            // Thoát toàn màn hình khi đã nộp xong
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+
+            // Kích hoạt tải file đáp án
+            downloadAnswers();
+        }
+
+        function downloadAnswers() {
+            const q1 = document.getElementById('w1_q1').value.trim() || "(Trống)";
+            const q2 = document.getElementById('w1_q2').value.trim() || "(Trống)";
+            const q3 = document.getElementById('w1_q3').value.trim() || "(Trống)";
+            const q4 = document.getElementById('w1_q4').value.trim() || "(Trống)";
+            const q5 = document.getElementById('w1_q5').value.trim() || "(Trống)";
+
+            const emailRaw = document.getElementById('w2_email').value.trim();
+            const w2Words = countWords(emailRaw);
+            const email = emailRaw || "(Trống)";
+
+            const essayRaw = document.getElementById('w3_essay').value.trim();
+            const w3Words = countWords(essayRaw);
+            const essay = essayRaw || "(Trống)";
+
+            const now = new Date().toLocaleString('vi-VN');
+
+            const content = 
+`=========================================
+        KẾT QUẢ BÀI KIỂM TRA WRITING
+=========================================
+Họ và tên : ${studentName}
+Lớp       : ${studentClass}
+Thời gian : ${now}
+Vi phạm   : ${violations}/2 lần
+Ghi chú   : ${submissionNote}
+
+-----------------------------------------
+WRITING PART 1
+-----------------------------------------
+Câu 1:
+${q1}
+
+Câu 2:
+${q2}
+
+Câu 3:
+${q3}
+
+Câu 4:
+${q4}
+
+Câu 5:
+${q5}
+
+-----------------------------------------
+WRITING PART 2: WRITE AN EMAIL (Số từ: ${w2Words} từ)
+-----------------------------------------
+${email}
+
+-----------------------------------------
+WRITING PART 3: OPINION ESSAY (Số từ: ${w3Words} từ)
+-----------------------------------------
+${essay}
+=========================================`;
+
+            const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+
+            const safeName = studentName.replace(/[\\/:*?"<>|]/g, '').trim();
+            const safeClass = studentClass.replace(/[\\/:*?"<>|]/g, '').trim();
+
+            a.href = url;
+            a.download = `${safeName} - ${safeClass}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 7. CƠ CHẾ TOÀN MÀN HÌNH & CHỐNG CHUYỂN TAB
+        function requestFullScreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(() => {});
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            }
+        }
+
+        function resumeFullscreen() {
+            document.getElementById('warning-modal').style.display = 'none';
+            requestFullScreen();
+        }
+
+        function recordViolation(reason) {
+            if (!isExamRunning) return;
+
+            const now = Date.now();
+            if (now - lastViolationTime < 1500) return;
+            lastViolationTime = now;
+
+            violations++;
+            document.getElementById('violation-count').textContent = violations;
+
+            if (violations >= 2) {
+                submissionNote = `Buộc nộp bài do vi phạm quy chế 2 lần (${reason})`;
+                finishExam();
+            } else {
+                document.getElementById('warning-desc').textContent = 
+                    `Hệ thống phát hiện bạn vừa ${reason}. Đây là lần cảnh cáo thứ 1/2. Nếu vi phạm thêm 1 lần nữa, bài thi sẽ tự động nộp ngay lập tức!`;
+                document.getElementById('warning-modal').style.display = 'flex';
+            }
+        }
+
+        // Chặn học viên dùng bàn phím (Space, K, Mũi tên) để dừng/tua video khi đang ở Phần 2
+        document.addEventListener('keydown', (e) => {
+            if (isExamRunning && currentPart === 2) {
+                if (['Space', 'KeyK', 'ArrowLeft', 'ArrowRight', 'MediaPlayPause'].includes(e.code)) {
+                    e.preventDefault();
+                }
+            }
+        });
+
+        // Bắt sự kiện chuyển sang Tab khác hoặc thu nhỏ trình duyệt
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isExamRunning) {
+                recordViolation("chuyển sang tab hoặc cửa sổ khác");
+            }
+        });
+
+        // Bắt sự kiện nhấn ESC thoát chế độ Toàn màn hình
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isExamRunning) {
+                recordViolation("thoát chế độ toàn màn hình");
+            }
+        });
+    </script>
+</body>
+</html>
